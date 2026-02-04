@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SchemaController;
+use App\Http\Controllers\SitemapController;
 use Illuminate\Support\Facades\Route;
 
 // Dashboard
@@ -19,6 +20,13 @@ Route::prefix('schemas/{schema}')->name('schemas.')->group(function () {
     Route::get('validate', [SchemaController::class, 'validate'])->name('validate');
     Route::get('test-google', [SchemaController::class, 'testWithGoogle'])->name('test-google');
     Route::post('fields/bulk', [SchemaController::class, 'bulkUpdateFields'])->name('fields.bulk');
+    // Sitemap management
+    Route::get('/sitemaps', [SitemapController::class, 'index'])->name('sitemaps.index');
+    Route::post('/sitemaps', [SitemapController::class, 'store'])->name('sitemaps.store');
+    Route::get('/sitemaps/{sitemap}', [SitemapController::class, 'show'])->name('sitemaps.show');
+    Route::post('/sitemaps/{sitemap}/import', [SitemapController::class, 'import'])->name('sitemaps.import');
+    Route::post('/sitemaps/{sitemap}/generate', [SitemapController::class, 'generate'])->name('sitemaps.generate');
+    Route::post('/sitemaps/{sitemap}/links', [SitemapController::class, 'addLink'])->name('sitemaps.links.store');
 });
 
 // Schema Type Actions
