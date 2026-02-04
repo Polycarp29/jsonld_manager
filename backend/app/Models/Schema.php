@@ -27,6 +27,13 @@ class Schema extends Model
         return $this->hasMany(SchemaField::class)->orderBy('sort_order');
     }
 
+    public function rootFields()
+    {
+        return $this->hasMany(SchemaField::class)
+            ->whereNull('parent_field_id')
+            ->orderBy('sort_order');
+    }
+
     /**
      * Validate the schema against Google's Schema.org requirements
      */
@@ -84,10 +91,8 @@ class Schema extends Model
         }
 
         // Process root fields
-        $rootFields = $this->fields()
-            ->whereNull('parent_field_id')
-            ->with('children')
-            ->orderBy('sort_order')
+        $rootFields = $this->rootFields()
+            ->with('recursiveChildren')
             ->get();
 
         // Check for @type override first to support multi-type (e.g. ["Organization", "WebSite"])

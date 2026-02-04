@@ -155,7 +155,14 @@ const props = defineProps({
   schemaTypes: Array
 })
 
-const localFields = ref(JSON.parse(JSON.stringify(props.schema.fields || [])))
+const mapFields = (fields) => {
+  return fields.map(f => ({
+    ...f,
+    children: mapFields(f.recursive_children || [])
+  }))
+}
+
+const localFields = ref(props.schema.root_fields ? mapFields(JSON.parse(JSON.stringify(props.schema.root_fields))) : [])
 const previewJson = ref('')
 const saving = ref(false)
 

@@ -26,4 +26,9 @@ class SchemaField extends Model
     {
         return $this->hasMany(SchemaField::class, 'parent_field_id')->orderBy('sort_order');
     }
+
+    public function recursiveChildren()
+    {
+        return $this->children()->with('recursiveChildren');
+    }
 }

@@ -134,7 +134,7 @@
                   </svg>
                 </Link>
                 <button
-                  @click="deleteSchema(schema.id)"
+                  @click="openDeleteModal(schema.id)"
                   class="inline-flex items-center justify-center w-12 h-12 bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 rounded-2xl transition-standard shadow-sm active:scale-95"
                   title="Remove"
                 >
@@ -187,6 +187,54 @@
         </div>
       </div>
     </div>
+
+    <!-- Deletion Verification Modal -->
+    <Transition 
+      enter-active-class="transition duration-300 ease-out"
+      enter-from-class="opacity-0"
+      enter-to-class="opacity-100"
+      leave-active-class="transition duration-200 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div v-if="showDeleteModal" class="fixed inset-0 z-[100] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div class="flex items-center justify-center min-h-screen p-4 text-center sm:p-0">
+          <!-- Background overlay -->
+          <div @click="closeDeleteModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md transition-opacity" aria-hidden="true"></div>
+
+          <!-- Modal Panel -->
+          <div class="relative z-10 inline-block align-middle bg-white rounded-[3rem] text-left overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.2)] transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-slate-100 animate-in zoom-in-95 duration-300">
+            <div class="bg-white p-12">
+              <div class="text-center">
+                <div class="mx-auto flex items-center justify-center h-24 w-24 rounded-[2rem] bg-red-50 mb-8 border border-red-100 shadow-inner">
+                  <svg class="h-12 w-12 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </div>
+                <h3 class="text-3xl font-black text-slate-900 tracking-tight mb-4" id="modal-title">Confirm Removal</h3>
+                <p class="text-slate-500 font-medium leading-relaxed">
+                  Are you sure you want to delete this schema? This action will archive the configuration. You can restore it later, but it will be deactivated immediately.
+                </p>
+              </div>
+            </div>
+            <div class="bg-slate-50 p-10 flex flex-col-reverse sm:flex-row sm:justify-center gap-6">
+              <button 
+                @click="closeDeleteModal" 
+                class="w-full sm:w-auto px-10 py-5 bg-white border border-slate-200 rounded-2xl text-sm font-black text-slate-600 hover:bg-slate-100 transition-standard active:scale-95 shadow-sm"
+              >
+                No, Keep it safe
+              </button>
+              <button 
+                @click="confirmDeletion" 
+                class="w-full sm:w-auto px-10 py-5 bg-red-600 border border-transparent rounded-2xl text-sm font-black text-white hover:bg-red-500 shadow-xl shadow-red-200 transition-standard active:scale-95"
+              >
+                Yes, Delete now
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </AppLayout>
 </template>
 
@@ -222,9 +270,25 @@ const resetFilters = () => {
   typeFilter.value = ''
 }
 
-const deleteSchema = (id) => {
-  if (confirm('Are you sure you want to delete this schema? This action cannot be undone.')) {
-    router.delete(`/schemas/${id}`)
+const showDeleteModal = ref(false)
+const selectedSchemaId = ref(null)
+
+const openDeleteModal = (id) => {
+  selectedSchemaId.value = id
+  showDeleteModal.value = true
+}
+
+const closeDeleteModal = () => {
+  showDeleteModal.value = false
+  selectedSchemaId.value = null
+}
+
+const confirmDeletion = () => {
+  if (selectedSchemaId.value) {
+    router.delete(`/schemas/${selectedSchemaId.value}`, {
+      onSuccess: () => closeDeleteModal(),
+      onError: () => closeDeleteModal()
+    })
   }
 }
 </script>

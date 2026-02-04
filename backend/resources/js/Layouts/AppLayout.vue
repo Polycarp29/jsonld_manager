@@ -31,13 +31,13 @@
             </Link>
             
             <Link
-              href="/schemas"
+              href="/sitemaps"
               class="px-5 py-2.5 rounded-xl text-sm font-semibold transition-standard"
-              :class="$page.component.startsWith('Schemas/Index') 
+              :class="$page.component.startsWith('Sitemaps/') 
                 ? 'bg-white text-blue-600 shadow-sm border border-slate-100' 
                 : 'text-slate-500 hover:text-slate-900 hover:bg-white/50'"
             >
-              All Schemas
+              Sitemaps
             </Link>
           </div>
 

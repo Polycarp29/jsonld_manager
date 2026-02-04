@@ -128,7 +128,7 @@ class SchemaController extends Controller
 
     public function edit(Schema $schema)
     {
-        $schema->load(['schemaType', 'fields.children']);
+        $schema->load(['schemaType', 'rootFields.recursiveChildren']);
         $schemaTypes = SchemaType::where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name', 'type_key', 'description', 'required_fields']);
@@ -274,126 +274,192 @@ class SchemaController extends Controller
             'meta_description' => 'required|string',
             'page_link' => 'required|url',
             'include_brand_identity' => 'boolean',
+            'brand_show_products' => 'boolean',
+            'brand_show_services' => 'boolean',
+            'brand_show_offers' => 'boolean',
+            'brand_products' => 'array',
+            'brand_products.*.@type' => 'nullable|string',
+            'brand_products.*.name' => 'nullable|string',
+            'brand_products.*.description' => 'nullable|string',
+            'brand_products.*.url' => 'nullable|string',
+            'brand_services' => 'array',
+            'brand_services.*.@type' => 'nullable|string',
+            'brand_services.*.name' => 'nullable|string',
+            'brand_services.*.description' => 'nullable|string',
+            'brand_services.*.url' => 'nullable|string',
             'modules' => 'array',
             'modules.*.schema_type_id' => 'required|exists:schema_types,id',
-            'modules.*.data' => 'array'
+            'modules.*.data' => 'array',
+            'modules.*.data.items' => 'array',
+            'modules.*.data.items.*.name' => 'nullable|string',
+            'modules.*.data.items.*.description' => 'nullable|string',
+            'modules.*.data.items.*.url' => 'nullable|string'
         ]);
 
-        // Find initial schema type for the model
-        // If brand identity is included, it's an Organization. Otherwise, use first module or fallback.
-        $primaryTypeId = null;
-        if ($validated['include_brand_identity']) {
-            $orgType = SchemaType::firstOrCreate(
-                ['type_key' => 'organization'],
-                ['name' => 'Organization', 'is_active' => true]
-            );
-            $primaryTypeId = $orgType->id;
-        } elseif (!empty($validated['modules'])) {
-            $primaryTypeId = $validated['modules'][0]['schema_type_id'];
-        } else {
-            // Ultimate fallback
-            $webPageType = SchemaType::firstOrCreate(
-                ['type_key' => 'webpage'],
-                ['name' => 'WebPage', 'is_active' => true]
-            );
-            $primaryTypeId = $webPageType->id;
-        }
-
-        $schema = Schema::create([
-            'schema_type_id' => $primaryTypeId,
-            'name' => $validated['name'],
-            'schema_id' => $validated['page_link'],
-            'url' => $validated['page_link'],
-            'is_active' => true
-        ]);
-
+        // Initialize fields array
         $fields = [];
 
-        // 1. Build Brand Identity Fields if requested
+        // 1. Build Brand Identity
         if ($validated['include_brand_identity']) {
-            $fields = [
-                '@type' => ['Organization', 'WebSite'],
-                'name' => '9UBET',
-                'alternateName' => ['9UBET Kenya', '9ubet.com'],
-                'description' => $validated['meta_description'],
-                'logo' => 'https://www.9ubet.co.ke/logo.png',
-                'sameAs' => [
-                    'https://www.instagram.com/9ubet.com_?igsh=MWx4eGwyYTlzaTFtYQ%3D%3D&utm_source=qr',
-                    'https://x.com/9ubet?s=21',
-                    'https://www.facebook.com/profile.php?id=61568301403707',
-                    'https://www.linkedin.com/company/96422776'
-                ],
-                'address' => [
-                    'addressCountry' => 'KE',
-                    'addressRegion' => 'Nairobi'
-                ],
-                'paymentAccepted' => 'M-Pesa',
-                'currenciesAccepted' => 'KES',
-                'offers' => [
+            $fields = $this->getOrganizationBaseData($validated['meta_description'], $validated['page_link']);
+            
+            if ($validated['brand_show_offers']) {
+                $fields['offers'] = [
                     '@type' => 'Offer',
                     'name' => 'Daily Deposit Bonus',
                     'description' => '99% withdrawable bonus on all deposits with no limitations',
-                    'category' => 'DepositBonus'
-                ],
-                'potentialAction' => [
-                    '@type' => 'RegisterAction',
-                    'name' => 'Betting Registration',
-                    'target' => 'https://www.9ubet.co.ke/register'
-                ],
-                'aggregateRating' => [
-                    '@type' => 'AggregateRating',
-                    'ratingValue' => '4.8',
-                    'reviewCount' => '2500',
-                    'bestRating' => '5'
-                ]
-            ];
+                    'category' => 'DepositBonus',
+                    'url' => $validated['page_link'] . '/bonuses'
+                ];
+            }
+
+            if ($validated['brand_show_products'] && !empty($validated['brand_products'])) {
+                $fields['makesOffer'] = array_map([$this, 'mapProductData'], $validated['brand_products']);
+            }
+
+            if ($validated['brand_show_services'] && !empty($validated['brand_services'])) {
+                $fields['service'] = array_map([$this, 'mapServiceData'], $validated['brand_services']);
+            }
         } else {
-            // Minimal root context
             $fields['description'] = $validated['meta_description'];
             $fields['url'] = $validated['page_link'];
         }
 
-        // 2. Process Dynamic Modules
+        // 2. Process Dynamic Modules (Eager Load Types)
+        $typeIds = collect($validated['modules'])->pluck('schema_type_id')->unique();
+        $schemaTypes = SchemaType::whereIn('id', $typeIds)->get()->keyBy('id');
+
+        // Find primary type ID from modules if not already set by identity
+        $primaryTypeId = null;
+        if ($validated['include_brand_identity']) {
+            $primaryTypeId = SchemaType::where('type_key', 'organization')->first()?->id;
+        }
+
         foreach ($validated['modules'] as $module) {
-            $type = SchemaType::find($module['schema_type_id']);
+            $type = $schemaTypes->get($module['schema_type_id']);
             if (!$type) continue;
+            
+            if (!$primaryTypeId) $primaryTypeId = $type->id;
 
             $items = $module['data']['items'] ?? [];
             if (empty($items)) continue;
 
-            // Map specialized modules to 9UBET's preferred JSON-LD properties
             if ($type->type_key === 'product') {
-                $fields['makesOffer'] = array_map(function($product) {
-                    return [
-                        '@type' => 'Product',
-                        'name' => $product['name'] ?? 'Unnamed Product',
-                        'description' => $product['description'] ?? '',
-                        'offers' => [
-                            '@type' => 'Offer',
-                            'url' => $product['url'] ?? '',
-                            'priceCurrency' => 'KES',
-                            'price' => '0',
-                            'availability' => 'https://schema.org/InStock'
-                        ]
-                    ];
-                }, $items);
+                $fields['makesOffer'] = array_merge($fields['makesOffer'] ?? [], array_map([$this, 'mapProductData'], $items));
             } elseif ($type->type_key === 'service' || $type->type_key === 'financial_product') {
-                $fields['service'] = array_map(function($service) {
-                    return [
-                        '@type' => 'FinancialProduct',
-                        'name' => $service['name'] ?? 'Unnamed Service',
-                        'description' => $service['description'] ?? ''
-                    ];
-                }, $items);
+                $fields['service'] = array_merge($fields['service'] ?? [], array_map([$this, 'mapServiceData'], $items));
             } else {
-                // For other types, add as a new array property named after type_key
-                $fields[$type->type_key] = $items;
+                $fields[$type->type_key] = array_merge($fields[$type->type_key] ?? [], $items);
             }
         }
 
+        // Fallback for primary type
+        if (!$primaryTypeId) {
+            $primaryTypeId = SchemaType::where('type_key', 'webpage')->first()?->id;
+        }
+
+        $pageLink = rtrim($validated['page_link'], '/');
+        $pageLinkWithSlash = $pageLink . '/';
+
+        $schema = Schema::withTrashed()
+            ->whereIn('schema_id', [$pageLink, $pageLinkWithSlash])
+            ->first();
+
+        if ($schema) {
+            $schema->update([
+                'schema_id' => $pageLink,
+                'schema_type_id' => $primaryTypeId,
+                'name' => $validated['name'],
+                'url' => $validated['page_link'],
+                'is_active' => true
+            ]);
+            if ($schema->trashed()) {
+                $schema->restore();
+            }
+        } else {
+            $schema = Schema::create([
+                'schema_id' => $pageLink,
+                'schema_type_id' => $primaryTypeId,
+                'name' => $validated['name'],
+                'url' => $validated['page_link'],
+                'is_active' => true
+            ]);
+        }
+
+        $schema->fields()->delete();
         $this->createFieldsFromData($schema->id, null, $fields);
 
         return redirect()->route('schemas.edit', $schema)
             ->with('message', 'Modular automated schema generated successfully!');
+    }
+
+    /**
+     * Centralized Brand/Organization Data
+     */
+    private function getOrganizationBaseData(string $description, string $url): array
+    {
+        return [
+            '@type' => ['Organization', 'WebSite'],
+            'name' => '9UBET',
+            'alternateName' => ['9UBET Kenya', '9ubet.com'],
+            'description' => $description,
+            'url' => $url,
+            'logo' => 'https://www.9ubet.co.ke/logo.png',
+            'sameAs' => [
+                'https://www.instagram.com/9ubet.com_?igsh=MWx4eGwyYTlzaTFtYQ%3D%3D&utm_source=qr',
+                'https://x.com/9ubet?s=21',
+                'https://www.facebook.com/profile.php?id=61568301403707',
+                'https://www.linkedin.com/company/96422776'
+            ],
+            'address' => [
+                'addressCountry' => 'KE',
+                'addressRegion' => 'Nairobi'
+            ],
+            'paymentAccepted' => 'M-Pesa',
+            'currenciesAccepted' => 'KES',
+            'aggregateRating' => [
+                '@type' => 'AggregateRating',
+                'ratingValue' => '4.8',
+                'reviewCount' => '2500',
+                'bestRating' => '5'
+            ],
+            'potentialAction' => [
+                '@type' => 'RegisterAction',
+                'name' => 'Betting Registration',
+                'target' => 'https://www.9ubet.co.ke/register'
+            ]
+        ];
+    }
+
+    /**
+     * Map item to Product Schema
+     */
+    private function mapProductData(array $data): array
+    {
+        return [
+            '@type' => $data['@type'] ?? 'Product',
+            'name' => $data['name'] ?? 'Unnamed Product',
+            'description' => $data['description'] ?? '',
+            'offers' => [
+                '@type' => 'Offer',
+                'url' => $data['url'] ?? '',
+                'priceCurrency' => 'KES',
+                'price' => '0',
+                'availability' => 'https://schema.org/InStock'
+            ]
+        ];
+    }
+
+    /**
+     * Map item to Service/FinancialProduct Schema
+     */
+    private function mapServiceData(array $data): array
+    {
+        return [
+            '@type' => $data['@type'] ?? 'FinancialProduct',
+            'name' => $data['name'] ?? 'Unnamed Service',
+            'description' => $data['description'] ?? '',
+            'url' => $data['url'] ?? ''
+        ];
     }
 }
