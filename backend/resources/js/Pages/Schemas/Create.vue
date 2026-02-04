@@ -28,7 +28,7 @@
                 v-model="form.name"
                 type="text"
                 placeholder="e.g., Football Betting Page"
-                class="block w-full px-6 py-4 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-standard text-slate-900 font-medium placeholder:text-slate-300"
+                class="block w-full px-6 py-4 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white transition-standard text-slate-900 font-medium placeholder:text-slate-300"
                 :class="{ 'border-red-300 ring-4 ring-red-50': form.errors.name }"
               />
               <Transition
@@ -45,7 +45,7 @@
               <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Schema Type</label>
               <select
                 v-model="form.schema_type_id"
-                class="block w-full px-6 py-4 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-standard text-slate-900 font-medium appearance-none"
+                class="block w-full px-6 py-4 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white transition-standard text-slate-900 font-medium appearance-none"
                 :class="{ 'border-red-300 ring-4 ring-red-50': form.errors.schema_type_id }"
               >
                 <option value="">Select a category...</option>
@@ -69,7 +69,7 @@
                 v-model="form.schema_id"
                 type="url"
                 placeholder="https://www.9ubet.co.ke/#organization"
-                class="block w-full px-6 py-4 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-standard text-slate-900 font-medium placeholder:text-slate-300"
+                class="block w-full px-6 py-4 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white transition-standard text-slate-900 font-medium placeholder:text-slate-300"
                 :class="{ 'border-red-300 ring-4 ring-red-50': form.errors.schema_id }"
               />
               <Transition
@@ -88,7 +88,7 @@
                 v-model="form.url"
                 type="url"
                 placeholder="https://www.9ubet.co.ke/sports/football"
-                class="block w-full px-6 py-4 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-standard text-slate-900 font-medium placeholder:text-slate-300"
+                class="block w-full px-6 py-4 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white transition-standard text-slate-900 font-medium placeholder:text-slate-300"
                 :class="{ 'border-red-300 ring-4 ring-red-50': form.errors.url }"
               />
               <Transition

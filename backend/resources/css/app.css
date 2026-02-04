@@ -22,6 +22,21 @@
     body {
         @apply antialiased text-slate-900 bg-[hsl(var(--color-background))];
     }
+
+    input,
+    select,
+    textarea {
+        outline: none;
+        @apply transition-standard;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+        border-color: var(--color-primary) !important;
+        box-shadow: 0 0 0 4px hsla(221, 83%, 53%, 0.1) !important;
+        outline: none !important;
+    }
 }
 
 @utility transition-standard {
@@ -38,7 +53,8 @@
 
 /* Progress Bar Customization */
 #nprogress .bar {
-    @apply h-1 bg-primary !important;
+    @apply h-1 bg-primary;
+    background-color: var(--color-primary) !important;
 }
 
 .custom-scrollbar::-webkit-scrollbar {

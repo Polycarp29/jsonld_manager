@@ -90,7 +90,15 @@ class Schema extends Model
             ->orderBy('sort_order')
             ->get();
 
+        // Check for @type override first to support multi-type (e.g. ["Organization", "WebSite"])
+        $typeField = $rootFields->where('field_path', '@type')->first();
+        if ($typeField) {
+            $schema['@type'] = $this->processField($typeField);
+        }
+
         foreach ($rootFields as $field) {
+            if ($field->field_path === '@type') continue;
+            
             $value = $this->processField($field);
             if ($value !== null && $value !== '') {
                 $schema[$field->field_path] = $value;

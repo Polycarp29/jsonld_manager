@@ -7,15 +7,26 @@
           <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight mb-2">Schema Repository</h1>
           <p class="text-slate-500 font-medium">Browse and manage all structured data configurations for 9UBET.</p>
         </div>
-        <Link
-          href="/schemas/create"
-          class="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-2xl font-bold transition-standard shadow-lg shadow-blue-200 active:scale-95"
-        >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          Build New Schema
-        </Link>
+        <div class="flex items-center gap-4">
+          <Link
+            href="/schemas/automated/create"
+            class="inline-flex items-center justify-center gap-3 bg-slate-900 hover:bg-slate-800 text-white px-8 py-4 rounded-2xl font-bold transition-standard shadow-xl shadow-slate-200 active:scale-95"
+          >
+            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Automated Builder
+          </Link>
+          <Link
+            href="/schemas/create"
+            class="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-2xl font-bold transition-standard shadow-lg shadow-blue-200 active:scale-95"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Build New Schema
+          </Link>
+        </div>
       </div>
 
       <!-- Advanced Filters -->
@@ -32,7 +43,7 @@
               v-model="search"
               type="text"
               placeholder="Filter by name, URL, or type..."
-              class="block w-full pl-12 pr-4 py-4 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-standard text-slate-900 placeholder:text-slate-400 sm:text-sm font-medium"
+              class="block w-full pl-12 pr-4 py-4 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white transition-standard text-slate-900 placeholder:text-slate-400 sm:text-sm font-medium"
             />
           </div>
         </div>
@@ -41,7 +52,7 @@
           <label class="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Filter by Type</label>
           <select
             v-model="typeFilter"
-            class="block w-full px-5 py-4 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-blue-100 focus:border-blue-400 transition-standard text-slate-900 font-medium sm:text-sm appearance-none"
+            class="block w-full px-5 py-4 rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white transition-standard text-slate-900 font-medium sm:text-sm appearance-none"
           >
             <option value="">All Categories</option>
             <option v-for="type in schemaTypes" :key="type.id" :value="type.type_key">

@@ -9,7 +9,7 @@
             v-model="field.field_path"
             type="text"
             placeholder="e.g., name, @type"
-            class="block w-full px-4 py-3 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-300 transition-standard text-sm font-medium placeholder:text-slate-300"
+            class="block w-full px-4 py-3 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white transition-standard text-sm font-medium placeholder:text-slate-300"
             @input="$emit('update')"
           />
         </div>
@@ -20,7 +20,7 @@
           <div class="relative">
             <select
               v-model="field.field_type"
-              class="block w-full px-4 py-3 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-300 transition-standard text-sm font-bold text-slate-700 appearance-none"
+              class="block w-full px-4 py-3 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white transition-standard text-sm font-bold text-slate-700 appearance-none"
               @change="handleTypeChange"
             >
               <option value="text">String / Text</option>
@@ -42,13 +42,13 @@
               v-model="field.field_value"
               :type="field.field_type === 'number' ? 'number' : 'text'"
               placeholder="Enter value..."
-              class="block w-full px-4 py-3 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-300 transition-standard text-sm font-medium placeholder:text-slate-300"
+              class="block w-full px-4 py-3 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white transition-standard text-sm font-medium placeholder:text-slate-300"
               @input="$emit('update')"
             />
             <select
               v-else
               v-model="field.field_value"
-              class="block w-full px-4 py-3 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-blue-50 focus:border-blue-300 transition-standard text-sm font-bold appearance-none"
+              class="block w-full px-4 py-3 rounded-xl border-slate-100 bg-slate-50/50 focus:bg-white transition-standard text-sm font-bold appearance-none"
               @change="$emit('update')"
             >
               <option value="true">True</option>

@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
 // Schema Management
+Route::get('schemas/automated/create', [SchemaController::class, 'automatedCreate'])->name('schemas.automated.create');
+Route::post('schemas/automated', [SchemaController::class, 'automatedStore'])->name('schemas.automated.store');
 Route::resource('schemas', SchemaController::class);
 
 // Schema Actions (AJAX endpoints)
