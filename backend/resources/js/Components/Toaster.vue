@@ -10,7 +10,7 @@
         leave-to-class="translate-x-full opacity-0"
       >
         <div
-          v-for="toast in toasts"
+          v-for="toast in toastStore.toasts"
           :key="toast.id"
           class="pointer-events-auto bg-white rounded-xl shadow-2xl border border-slate-100 p-4 flex items-start gap-4 overflow-hidden relative group"
           :class="{
@@ -34,13 +34,13 @@
 
           <!-- Content -->
           <div class="flex-grow min-w-0">
-            <p class="text-sm font-semibold text-slate-900 leading-tight">{{ toast.title || 'Notification' }}</p>
+            <p class="text-sm font-semibold text-slate-900 leading-tight">{{ toast.title }}</p>
             <p class="text-xs text-slate-500 mt-1 leading-relaxed">{{ toast.message }}</p>
           </div>
 
           <!-- Close Button -->
           <button
-            @click="remove(toast.id)"
+            @click="toastStore.remove(toast.id)"
             class="flex-shrink-0 text-slate-400 hover:text-slate-600 transition-colors p-1"
           >
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -70,63 +70,28 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { watch, onMounted } from 'vue'
 import { usePage } from '@inertiajs/vue3'
+import { useToastStore } from '../stores/useToastStore'
 
-const toasts = ref([])
+const toastStore = useToastStore()
 const page = usePage()
-
-const add = (type, message, title = '') => {
-  const id = Date.now()
-  const duration = 5000
-  const startTime = Date.now()
-  
-  const toast = {
-    id,
-    type,
-    message,
-    title,
-    progress: 100,
-  }
-  
-  toasts.value.push(toast)
-  
-  const interval = setInterval(() => {
-    const elapsed = Date.now() - startTime
-    const remaining = Math.max(0, duration - elapsed)
-    toast.progress = (remaining / duration) * 100
-    
-    if (remaining <= 0) {
-      clearInterval(interval)
-      remove(id)
-    }
-  }, 10)
-}
-
-const remove = (id) => {
-  const index = toasts.value.findIndex(t => t.id === id)
-  if (index !== -1) toasts.value.splice(index, 1)
-}
 
 // Watch Inertia flash messages
 watch(() => page.props.flash, (flash) => {
   if (flash.message) {
-    add('success', flash.message, 'Success')
-    // Clear flash manually if needed, but usually Inertia handles this on next visit
+    toastStore.success(flash.message)
   }
   if (flash.error) {
-    add('error', flash.error, 'Error')
+    toastStore.error(flash.error)
   }
 }, { deep: true })
 
 onMounted(() => {
   // Check if there's an initial flash
-  if (page.props.flash.message) add('success', page.props.flash.message, 'Success')
-  if (page.props.flash.error) add('error', page.props.flash.error, 'Error')
+  if (page.props.flash.message) toastStore.success(page.props.flash.message)
+  if (page.props.flash.error) toastStore.error(page.props.flash.error)
 })
-
-// Expose add method globally via event bus or providing it
-defineExpose({ add })
 </script>
 
 <style scoped>

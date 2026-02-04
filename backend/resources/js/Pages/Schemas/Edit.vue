@@ -147,6 +147,9 @@ import { Link, router } from '@inertiajs/vue3'
 import AppLayout from '../../Layouts/AppLayout.vue'
 import FieldItem from './Components/FieldItem.vue'
 
+import { useToastStore } from '../../stores/useToastStore'
+
+const toastStore = useToastStore()
 const props = defineProps({
   schema: Object,
   schemaTypes: Array
@@ -231,7 +234,7 @@ const highlight = (line) => {
 
 const copyPreview = () => {
   navigator.clipboard.writeText(previewJson.value)
-  alert('Optimized JSON-LD copied to clipboard!')
+  toastStore.success('Optimized JSON-LD copied to clipboard!')
 }
 
 onMounted(() => {

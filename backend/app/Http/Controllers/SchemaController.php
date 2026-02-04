@@ -257,4 +257,143 @@ class SchemaController extends Controller
             'has_rules' => !is_null($rules)
         ]);
     }
+
+    public function automatedCreate()
+    {
+        $schemaTypes = SchemaType::where('is_active', true)->get(['id', 'name', 'type_key']);
+        
+        return Inertia::render('Schemas/AutomatedGenerator', [
+            'schemaTypes' => $schemaTypes
+        ]);
+    }
+
+    public function automatedStore(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'meta_description' => 'required|string',
+            'page_link' => 'required|url',
+            'include_brand_identity' => 'boolean',
+            'modules' => 'array',
+            'modules.*.schema_type_id' => 'required|exists:schema_types,id',
+            'modules.*.data' => 'array'
+        ]);
+
+        // Find initial schema type for the model
+        // If brand identity is included, it's an Organization. Otherwise, use first module or fallback.
+        $primaryTypeId = null;
+        if ($validated['include_brand_identity']) {
+            $orgType = SchemaType::firstOrCreate(
+                ['type_key' => 'organization'],
+                ['name' => 'Organization', 'is_active' => true]
+            );
+            $primaryTypeId = $orgType->id;
+        } elseif (!empty($validated['modules'])) {
+            $primaryTypeId = $validated['modules'][0]['schema_type_id'];
+        } else {
+            // Ultimate fallback
+            $webPageType = SchemaType::firstOrCreate(
+                ['type_key' => 'webpage'],
+                ['name' => 'WebPage', 'is_active' => true]
+            );
+            $primaryTypeId = $webPageType->id;
+        }
+
+        $schema = Schema::create([
+            'schema_type_id' => $primaryTypeId,
+            'name' => $validated['name'],
+            'schema_id' => $validated['page_link'],
+            'url' => $validated['page_link'],
+            'is_active' => true
+        ]);
+
+        $fields = [];
+
+        // 1. Build Brand Identity Fields if requested
+        if ($validated['include_brand_identity']) {
+            $fields = [
+                '@type' => ['Organization', 'WebSite'],
+                'name' => '9UBET',
+                'alternateName' => ['9UBET Kenya', '9ubet.com'],
+                'description' => $validated['meta_description'],
+                'logo' => 'https://www.9ubet.co.ke/logo.png',
+                'sameAs' => [
+                    'https://www.instagram.com/9ubet.com_?igsh=MWx4eGwyYTlzaTFtYQ%3D%3D&utm_source=qr',
+                    'https://x.com/9ubet?s=21',
+                    'https://www.facebook.com/profile.php?id=61568301403707',
+                    'https://www.linkedin.com/company/96422776'
+                ],
+                'address' => [
+                    'addressCountry' => 'KE',
+                    'addressRegion' => 'Nairobi'
+                ],
+                'paymentAccepted' => 'M-Pesa',
+                'currenciesAccepted' => 'KES',
+                'offers' => [
+                    '@type' => 'Offer',
+                    'name' => 'Daily Deposit Bonus',
+                    'description' => '99% withdrawable bonus on all deposits with no limitations',
+                    'category' => 'DepositBonus'
+                ],
+                'potentialAction' => [
+                    '@type' => 'RegisterAction',
+                    'name' => 'Betting Registration',
+                    'target' => 'https://www.9ubet.co.ke/register'
+                ],
+                'aggregateRating' => [
+                    '@type' => 'AggregateRating',
+                    'ratingValue' => '4.8',
+                    'reviewCount' => '2500',
+                    'bestRating' => '5'
+                ]
+            ];
+        } else {
+            // Minimal root context
+            $fields['description'] = $validated['meta_description'];
+            $fields['url'] = $validated['page_link'];
+        }
+
+        // 2. Process Dynamic Modules
+        foreach ($validated['modules'] as $module) {
+            $type = SchemaType::find($module['schema_type_id']);
+            if (!$type) continue;
+
+            $items = $module['data']['items'] ?? [];
+            if (empty($items)) continue;
+
+            // Map specialized modules to 9UBET's preferred JSON-LD properties
+            if ($type->type_key === 'product') {
+                $fields['makesOffer'] = array_map(function($product) {
+                    return [
+                        '@type' => 'Product',
+                        'name' => $product['name'] ?? 'Unnamed Product',
+                        'description' => $product['description'] ?? '',
+                        'offers' => [
+                            '@type' => 'Offer',
+                            'url' => $product['url'] ?? '',
+                            'priceCurrency' => 'KES',
+                            'price' => '0',
+                            'availability' => 'https://schema.org/InStock'
+                        ]
+                    ];
+                }, $items);
+            } elseif ($type->type_key === 'service' || $type->type_key === 'financial_product') {
+                $fields['service'] = array_map(function($service) {
+                    return [
+                        '@type' => 'FinancialProduct',
+                        'name' => $service['name'] ?? 'Unnamed Service',
+                        'description' => $service['description'] ?? ''
+                    ];
+                }, $items);
+            } else {
+                // For other types, add as a new array property named after type_key
+                $fields[$type->type_key] = $items;
+            }
+        }
+
+        $this->createFieldsFromData($schema->id, null, $fields);
+
+        return redirect()->route('schemas.edit', $schema)
+            ->with('message', 'Modular automated schema generated successfully!');
+    }
 }
