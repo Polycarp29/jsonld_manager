@@ -27,7 +27,7 @@ Route::get('/sitemaps', [SitemapController::class, 'index'])->name('sitemaps.ind
 Route::post('/sitemaps', [SitemapController::class, 'store'])->name('sitemaps.store');
 Route::get('/sitemaps/{sitemap}', [SitemapController::class, 'show'])->name('sitemaps.show');
 Route::post('/sitemaps/{sitemap}/import', [SitemapController::class, 'import'])->name('sitemaps.import');
-Route::post('/sitemaps/{sitemap}/generate', [SitemapController::class, 'generate'])->name('sitemaps.generate');
+Route::get('/sitemaps/{sitemap}/generate', [SitemapController::class, 'generate'])->name('sitemaps.generate');
 Route::post('/sitemaps/{sitemap}/links', [SitemapController::class, 'addLink'])->name('sitemaps.links.store');
 
 // Schema Type Actions

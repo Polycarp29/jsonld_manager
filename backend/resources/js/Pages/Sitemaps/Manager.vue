@@ -219,12 +219,7 @@ const addSingleLink = () => {
 }
 
 const generateXml = () => {
-  generating.value = true
-  router.post(route('sitemaps.generate', props.sitemap.id), {}, {
-    onFinish: () => {
-      generating.value = false
-    }
-  })
+  window.location.href = route('sitemaps.generate', props.sitemap.id)
 }
 </script>
 

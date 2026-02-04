@@ -39,19 +39,15 @@ class SitemapController extends Controller
 
     public function show(Sitemap $sitemap)
     {
-        $sitemap->load(['links' => function($query) {
-            $query->orderBy('created_at', 'desc')->paginate(100);
-        }]);
-
         // Basic duplicate detection for the view
-        $duplicates = SitemapLink::whereIn('url', $sitemap->links->pluck('url'))
+        $duplicates = SitemapLink::whereIn('url', $sitemap->links()->pluck('url'))
             ->where('sitemap_id', '!=', $sitemap->id)
             ->get()
             ->groupBy('url');
 
         return Inertia::render('Sitemaps/Manager', [
             'sitemap' => $sitemap,
-            'links' => $sitemap->links()->paginate(100),
+            'links' => $sitemap->links()->orderBy('created_at', 'desc')->paginate(100),
             'duplicateCount' => $duplicates->count()
         ]);
     }
@@ -59,30 +55,36 @@ class SitemapController extends Controller
     public function import(Request $request, Sitemap $sitemap)
     {
         $request->validate([
-            'file' => 'required|mimes:csv,txt'
+            'file' => 'required|mimes:csv,txt,xml'
         ]);
 
         $file = $request->file('file');
         $handle = fopen($file->getRealPath(), 'r');
         
         $imported = 0;
+        $row = 0;
         while (($data = fgetcsv($handle)) !== false) {
-            $url = $data[0] ?? null;
-            if ($url && filter_var($url, FILTER_VALIDATE_URL)) {
-                SitemapLink::firstOrCreate([
-                    'sitemap_id' => $sitemap->id,
-                    'url' => $url
-                ], [
-                    'lastmod' => now()->format('Y-m-d'),
-                    'changefreq' => 'daily',
-                    'priority' => 0.6
-                ]);
-                $imported++;
+            $row++;
+            $url = trim($data[0] ?? '');
+            
+            // Skip header or invalid URLs
+            if (empty($url) || !filter_var($url, FILTER_VALIDATE_URL) || strtolower($url) === 'url') {
+                continue;
             }
+
+            SitemapLink::updateOrCreate([
+                'sitemap_id' => $sitemap->id,
+                'url' => $url
+            ], [
+                'lastmod' => now()->format('Y-m-d'),
+                'changefreq' => 'daily',
+                'priority' => 0.7
+            ]);
+            $imported++;
         }
         fclose($handle);
 
-        return back()->with('message', "Successfully imported $imported links!");
+        return back()->with('message', "Successfully synced $imported links!");
     }
 
     public function addLink(Request $request, Sitemap $sitemap)
@@ -113,28 +115,27 @@ class SitemapController extends Controller
             }
             $xml .= '</sitemapindex>';
         } else {
-            $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . PHP_EOL;
-            foreach ($sitemap->links as $link) {
+            $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">' . PHP_EOL;
+            
+            // Load all links for generation
+            $links = $sitemap->links;
+            foreach ($links as $link) {
                 $xml .= '  <url>' . PHP_EOL;
                 $xml .= '    <loc>' . htmlspecialchars($link->url) . '</loc>' . PHP_EOL;
-                if ($link->lastmod) $xml .= '    <lastmod>' . $link->lastmod . '</lastmod>' . PHP_EOL;
-                $xml .= '    <changefreq>' . $link->changefreq . '</changefreq>' . PHP_EOL;
-                $xml .= '    <priority>' . $link->priority . '</priority>' . PHP_EOL;
+                if ($link->lastmod) {
+                    $xml .= '    <lastmod>' . $link->lastmod . '</lastmod>' . PHP_EOL;
+                }
+                $xml .= '    <changefreq>' . ($link->changefreq ?: 'daily') . '</changefreq>' . PHP_EOL;
+                $xml .= '    <priority>' . number_format($link->priority ?: 0.7, 1) . '</priority>' . PHP_EOL;
                 $xml .= '  </url>' . PHP_EOL;
             }
             $xml .= '</urlset>';
         }
 
-        // Ensure public directory exists
-        if (!File::exists(public_path('sitemaps'))) {
-            File::makeDirectory(public_path('sitemaps'), 0755, true);
-        }
-
-        $path = public_path($sitemap->filename);
-        File::put($path, $xml);
-
         $sitemap->update(['last_generated_at' => now()]);
 
-        return back()->with('message', "XML Generated at $path");
+        return response($xml)
+            ->header('Content-Type', 'application/xml; charset=utf-8')
+            ->header('Content-Disposition', 'attachment; filename="' . $sitemap->filename . '"');
     }
 }

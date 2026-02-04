@@ -39,6 +39,16 @@
             >
               Sitemaps
             </Link>
+
+            <Link
+              href="/schemas"
+              class="px-5 py-2.5 rounded-xl text-sm font-semibold transition-standard"
+              :class="$page.component.startsWith('Schemas/') 
+                ? 'bg-white text-blue-600 shadow-sm border border-slate-100' 
+                : 'text-slate-500 hover:text-slate-900 hover:bg-white/50'"
+            >
+              Schemas
+            </Link>
           </div>
 
           <!-- Actions -->

@@ -117,7 +117,7 @@ class SchemaController extends Controller
 
     public function show(Schema $schema)
     {
-        $schema->load(['schemaType', 'fields.children']);
+        $schema->load(['schemaType', 'rootFields.recursiveChildren']);
 
         return Inertia::render('Schemas/Show', [
             'schema' => $schema,
@@ -156,14 +156,14 @@ class SchemaController extends Controller
 
     public function preview(Schema $schema)
     {
-        $schema->load(['schemaType', 'fields.children']);
+        $schema->load(['schemaType', 'rootFields.recursiveChildren']);
         
         return response()->json($schema->toJsonLd());
     }
 
     public function export(Schema $schema)
     {
-        $schema->load(['schemaType', 'fields.children']);
+        $schema->load(['schemaType', 'rootFields.recursiveChildren']);
         $json = json_encode($schema->toJsonLd(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
         
         return response($json)
@@ -173,7 +173,7 @@ class SchemaController extends Controller
 
     public function validate(Schema $schema)
     {
-        $schema->load(['schemaType', 'fields.children']);
+        $schema->load(['schemaType', 'rootFields.recursiveChildren']);
         $validation = $schema->validateSchema();
         
         return response()->json([
@@ -187,7 +187,7 @@ class SchemaController extends Controller
 
     public function testWithGoogle(Schema $schema)
     {
-        $schema->load(['schemaType', 'fields.children']);
+        $schema->load(['schemaType', 'rootFields.recursiveChildren']);
         $jsonLd = $schema->toJsonLd();
         
         // Generate Google Rich Results Test URL
@@ -299,8 +299,10 @@ class SchemaController extends Controller
         // Initialize fields array
         $fields = [];
 
-        // 1. Build Brand Identity
+        // Find primary type ID
+        $primaryTypeId = null;
         if ($validated['include_brand_identity']) {
+            $primaryTypeId = SchemaType::where('type_key', 'organization')->first()?->id;
             $fields = $this->getOrganizationBaseData($validated['meta_description'], $validated['page_link']);
             
             if ($validated['brand_show_offers']) {
@@ -321,19 +323,15 @@ class SchemaController extends Controller
                 $fields['service'] = array_map([$this, 'mapServiceData'], $validated['brand_services']);
             }
         } else {
-            $fields['description'] = $validated['meta_description'];
-            $fields['url'] = $validated['page_link'];
+            $fields = [
+                'description' => $validated['meta_description'],
+                'url' => $validated['page_link']
+            ];
         }
 
         // 2. Process Dynamic Modules (Eager Load Types)
         $typeIds = collect($validated['modules'])->pluck('schema_type_id')->unique();
         $schemaTypes = SchemaType::whereIn('id', $typeIds)->get()->keyBy('id');
-
-        // Find primary type ID from modules if not already set by identity
-        $primaryTypeId = null;
-        if ($validated['include_brand_identity']) {
-            $primaryTypeId = SchemaType::where('type_key', 'organization')->first()?->id;
-        }
 
         foreach ($validated['modules'] as $module) {
             $type = $schemaTypes->get($module['schema_type_id']);
@@ -345,9 +343,15 @@ class SchemaController extends Controller
             if (empty($items)) continue;
 
             if ($type->type_key === 'product') {
-                $fields['makesOffer'] = array_merge($fields['makesOffer'] ?? [], array_map([$this, 'mapProductData'], $items));
+                $mappedItems = array_map([$this, 'mapProductData'], $items);
+                $fields['makesOffer'] = $this->deduplicateItems(
+                    array_merge($fields['makesOffer'] ?? [], $mappedItems)
+                );
             } elseif ($type->type_key === 'service' || $type->type_key === 'financial_product') {
-                $fields['service'] = array_merge($fields['service'] ?? [], array_map([$this, 'mapServiceData'], $items));
+                $mappedItems = array_map([$this, 'mapServiceData'], $items);
+                $fields['service'] = $this->deduplicateItems(
+                    array_merge($fields['service'] ?? [], $mappedItems)
+                );
             } else {
                 $fields[$type->type_key] = array_merge($fields[$type->type_key] ?? [], $items);
             }
@@ -361,37 +365,44 @@ class SchemaController extends Controller
         $pageLink = rtrim($validated['page_link'], '/');
         $pageLinkWithSlash = $pageLink . '/';
 
-        $schema = Schema::withTrashed()
-            ->whereIn('schema_id', [$pageLink, $pageLinkWithSlash])
-            ->first();
+        DB::transaction(function () use ($pageLink, $pageLinkWithSlash, $primaryTypeId, $validated, $fields) {
+            $schema = Schema::withTrashed()
+                ->whereIn('schema_id', [$pageLink, $pageLinkWithSlash])
+                ->first();
 
-        if ($schema) {
-            $schema->update([
-                'schema_id' => $pageLink,
-                'schema_type_id' => $primaryTypeId,
-                'name' => $validated['name'],
-                'url' => $validated['page_link'],
-                'is_active' => true
-            ]);
-            if ($schema->trashed()) {
-                $schema->restore();
+            if ($schema) {
+                $schema->update([
+                    'schema_id' => $pageLink,
+                    'schema_type_id' => $primaryTypeId,
+                    'name' => $validated['name'],
+                    'url' => $validated['page_link'],
+                    'is_active' => true
+                ]);
+                if ($schema->trashed()) {
+                    $schema->restore();
+                }
+            } else {
+                $schema = Schema::create([
+                    'schema_id' => $pageLink,
+                    'schema_type_id' => $primaryTypeId,
+                    'name' => $validated['name'],
+                    'url' => $validated['page_link'],
+                    'is_active' => true
+                ]);
             }
-        } else {
-            $schema = Schema::create([
-                'schema_id' => $pageLink,
-                'schema_type_id' => $primaryTypeId,
-                'name' => $validated['name'],
-                'url' => $validated['page_link'],
-                'is_active' => true
-            ]);
-        }
 
-        $schema->fields()->delete();
-        $this->createFieldsFromData($schema->id, null, $fields);
+            // Clean existing and create new in one go
+            $schema->fields()->delete();
+            $this->createFieldsFromData($schema->id, null, $fields);
+            
+            $this->lastGeneratedSchema = $schema;
+        });
 
-        return redirect()->route('schemas.edit', $schema)
+        return redirect()->route('schemas.edit', $this->lastGeneratedSchema)
             ->with('message', 'Modular automated schema generated successfully!');
     }
+
+    private $lastGeneratedSchema;
 
     /**
      * Centralized Brand/Organization Data
@@ -461,5 +472,20 @@ class SchemaController extends Controller
             'description' => $data['description'] ?? '',
             'url' => $data['url'] ?? ''
         ];
+    }
+
+    /**
+     * Deduplicate items in an array by Name or URL
+     */
+    private function deduplicateItems(array $items): array
+    {
+        $unique = [];
+        foreach ($items as $item) {
+            $key = !empty($item['name']) ? $item['name'] : (!empty($item['url']) ? $item['url'] : serialize($item));
+            if (!isset($unique[$key])) {
+                $unique[$key] = $item;
+            }
+        }
+        return array_values($unique);
     }
 }

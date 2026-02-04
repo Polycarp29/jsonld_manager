@@ -4,8 +4,8 @@
       <!-- Welcome Hero -->
       <div class="relative overflow-hidden bg-slate-900 rounded-[2.5rem] p-8 md:p-16 shadow-2xl">
         <!-- Background Orbs -->
-        <div class="absolute -top-24 -right-24 w-96 h-96 bg-blue-600/20 rounded-full blur-[100px]"></div>
-        <div class="absolute -bottom-24 -left-24 w-72 h-72 bg-indigo-600/20 rounded-full blur-[80px]"></div>
+        <!-- <div class="absolute -top-24 -right-24 w-96 h-96 bg-blue-600/20 rounded-full blur-[100px]"></div>
+        <div class="absolute -bottom-24 -left-24 w-72 h-72 bg-indigo-600/20 rounded-full blur-[80px]"></div> -->
         
         <div class="relative z-10 max-w-3xl">
           <span class="inline-block px-4 py-1.5 rounded-full bg-blue-500/10 border border-blue-400/20 text-blue-400 text-xs font-bold uppercase tracking-widest mb-6">
@@ -15,7 +15,7 @@
             Master Your Site's <span class="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-300">Structured Data</span>
           </h1>
           <p class="text-lg md:text-xl text-slate-400 leading-relaxed mb-10">
-            Centrally manage, validate, and deploy Schema.org JSON-LD configurations for 9UBET with our next-gen dynamic builder.
+            Centrally manage, validate, and deploy Schema.org JSON-LD configurations.
           </p>
           <div class="flex flex-wrap gap-4">
             <Link

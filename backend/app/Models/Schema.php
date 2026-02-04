@@ -118,8 +118,11 @@ class Schema extends Model
      */
     private function processField($field)
     {
+        // Use recursiveChildren if loaded, fall back to children
+        $children = $field->relationLoaded('recursiveChildren') ? $field->recursiveChildren : $field->children;
+
         // Handle empty values
-        if (empty($field->field_value) && $field->children->isEmpty()) {
+        if (empty($field->field_value) && $children->isEmpty()) {
             return null;
         }
 
@@ -133,7 +136,7 @@ class Schema extends Model
                 }
                 
                 // Process children
-                foreach ($field->children as $child) {
+                foreach ($children as $child) {
                     $childValue = $this->processField($child);
                     if ($childValue !== null && $childValue !== '') {
                         $obj[$child->field_path] = $childValue;
@@ -146,7 +149,7 @@ class Schema extends Model
                 $arr = [];
                 
                 // Process children as array items
-                foreach ($field->children as $child) {
+                foreach ($children as $child) {
                     $childValue = $this->processField($child);
                     if ($childValue !== null && $childValue !== '') {
                         $arr[] = $childValue;
